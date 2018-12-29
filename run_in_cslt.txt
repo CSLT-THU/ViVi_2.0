@@ -1,0 +1,5 @@
+the file is only useful for cslt members.
+
+First step:download the program.
+
+Second step: login any server with free gpu in cslt, open the install_quickly_in_cslt dir,  read the readme in it, and run the program.
