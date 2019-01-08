@@ -73,7 +73,8 @@ FLAGS = tf.app.flags.FLAGS
 # We use buckets and pad to the closest one for efficiency.
 # See seq2seq_model.Seq2SeqModel for details of how they work.
 # In this case, only one bucket is needed.
-_buckets = [(32, 41)]
+# _buckets = [(32, 41)]
+_buckets = [(16, 40)]
 
 
 def read_data(source_path):
@@ -103,6 +104,7 @@ def read_data(source_path):
 
             target = target[:-2] if target.find('\r\n') > -1 else target[:-1]
 
+            # for targets, repeat the first sentence at the end of the last sentence
             target_words += target.replace('\t', ' / ').split(' ') + ['/'] + target.split('\t')[0].split(' ')
 
             source_ids = [word2id.get(x, charac_num - 1) for x in source_words]

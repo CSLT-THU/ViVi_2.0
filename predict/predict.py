@@ -16,13 +16,15 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
 import os
 import random
 import sys
+
 import numpy as np
 import tensorflow as tf
-import data_utils
 import seq2seq_model
+import data_utils
 import memoryModule_decoder
 
 np.set_printoptions(threshold='nan')
@@ -824,6 +826,12 @@ def create_model(session, is_predict):
 
 
 def prepare_data_for_prediction(options, test_file, theme_file):
+    '''
+    :param options:
+    :param test_file: test_poem_58k.txt
+    :param theme_file: head_song.txt for cangtou
+    :return: test: list of testset, target, theme_list, type_list
+    '''
     print('Predict: loading data')
     test = []
     target = []
@@ -831,7 +839,7 @@ def prepare_data_for_prediction(options, test_file, theme_file):
     type_list = []
 
     if 1:
-        for l in test_file:
+        for l in test_file: # one line
             if l != '\n':
                 l_temp = l.split('\t')[0]
                 if options['reverse_training']:
@@ -843,7 +851,11 @@ def prepare_data_for_prediction(options, test_file, theme_file):
 
     if len(options['type_len_format']):  # totally 51 types (0-50). 49: '7-7-7-7', 50: '5-5-5-5'
         for l in test_file:
-            if options['force_type'] == '':  # default = ''
+            # print(options['force_type'])
+            if options['force_type'] == '':
+            # e.g. 测试数据行 '溪 居 \t 御风 \t 遗世独立 \t 羽化登仙' 得到temp_str='2-2-4-4'
+            # 但是因为不在type_len_format中，默认为'5-5-5-5'
+            # 问题：必须要测试数据是需要生成的格式。或者用force_type指定。
                 l = l.rstrip().lstrip()
                 temp_str = ''
                 for ll in l.split('\t'):
@@ -860,6 +872,8 @@ def prepare_data_for_prediction(options, test_file, theme_file):
                     type_list.append(len(options['type_len_format']) - 1)
             else:
                 type_list.append(options['type_len_format'].index(options['force_type']))
+                # add the index of force_type to type_list
+                # if poem7, then type_list = [49, 49, 49, 49, ...]
 
     if len(type_list) != len(test):
         print('type len err ' * 80)
@@ -875,15 +889,20 @@ def prepare_data_for_prediction(options, test_file, theme_file):
         target = target[int(options['train_percentage'] * len(target)):]
         type_list = type_list[int(options['train_percentage'] * len(type_list)):]
 
+    # print('data process:')
+    # print(test)
+    # print(len(test))
+    # print(type_list)
+
     return test, target, theme_list, type_list
 
 
 def predict_process(options, data_set, sess, model, bucket_id=0, is_feed=True):
     print('Predict results:')
     test, target, theme_list, type_list = data_set
-    # test: testset
-    # type_list: type of each sentence in testset. usually, the types in one testset are the same. 
-    # e.g. [49, 49, 49] (testset contains 3 sentences, all are 49th type, which is type='7-7-7-7') 
+    # test: testset, including keyword inputs.
+    # type_list: type of each sentence expected in testset. usually, the types in one testset are the same.
+    # e.g. [49, 49, 49] (testset contains 3 sentences, all expecting 49th type, which is type='7-7-7-7')
 
     return_list = []  # all poems
     return_str = ''  # one poem
@@ -903,6 +922,8 @@ def predict_process(options, data_set, sess, model, bucket_id=0, is_feed=True):
         theme = ''  # remain a problem, no use
         l_sentence = test[t]
         type_sig = type_list[t]
+        # print('type_sig')
+        # print(type_sig)
         charac_num = FLAGS.vocab_size
         attention_state = []
         state = []
@@ -953,11 +974,12 @@ def predict_process(options, data_set, sess, model, bucket_id=0, is_feed=True):
         # PRINT NUMBER 
         print(str(t+1) + '/' + str(lentest))
 
-        # maximun predict, default=5000
+        # maximum predict_2.0, default=5000
         if t > options['cut_predict']:
             break
 
-        idSet = set([0, 1, 2, 65, 2098, len(word2id.keys()) - 1, len(word2id.keys()) - 2])  # ?
+        # idSet = set([0, 1, 2, 65, 2098, len(word2id.keys()) - 1, len(word2id.keys()) - 2])
+        idSet = {0, 1, 2, len(word2id.keys()), len(word2id.keys()) - 1}
         for stop_word in options['stop_words']:  # default=['的']
             idSet.add(word2id.get(stop_word, 1))
 
@@ -1097,20 +1119,11 @@ def predict_process(options, data_set, sess, model, bucket_id=0, is_feed=True):
                     full_words = full_candidates + c['word'].replace('START', '')
 
                     # get_next_id
-                    sen_candidates, _candidates, yunD1, id_top, prob_idt, prob_max = get_next_id(startWords, idSet,
-                                                                                                 predictls_temp, c, \
-                                                                                                 _candidates,
-                                                                                                 sen_candidates,
-                                                                                                 yunmuModel,
-                                                                                                 count_accum, i_count,
-                                                                                                 j, i, len_c, word2id,
-                                                                                                 id2word, \
-                                                                                                 options['lv_list'],
-                                                                                                 charac_num,
-                                                                                                 predict_word_id_list,
-                                                                                                 options, l_sentence,
-                                                                                                 full_words, ran,
-                                                                                                 ci_list, hid_dict)
+                    sen_candidates, _candidates, yunD1, id_top, prob_idt, prob_max = \
+                        get_next_id(startWords, idSet, predictls_temp, c, _candidates, sen_candidates,
+                                    yunmuModel, count_accum, i_count, j, i, len_c, word2id, id2word,
+                                    options['lv_list'], charac_num, predict_word_id_list, options,
+                                    l_sentence, full_words, ran, ci_list, hid_dict)
 
                     top_chose_list.append(str(id_top))
                     prob_idt_list.append(round(prob_idt, 2))
@@ -1119,9 +1132,102 @@ def predict_process(options, data_set, sess, model, bucket_id=0, is_feed=True):
                     if yunD1 != {}:
                         yunD0 = yunD1
 
+                # print('len of _candidates:')
+                # print(len(_candidates))  # depends on top_k. if top_k=2, len=4
+
+                '''
+                10/10
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                0
+                sen_candidates:
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                0
+                sen_candidates:
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                0
+                sen_candidates:
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                0
+                sen_candidates:
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                1
+                len of _candidates:
+                0
+                sen_candidates:
+                红尘妃子笑倾城====红尘怜子笑	便欲出江城	绿玉共青山	双眼碧云横
+                '''
+
                 candidates = sorted(_candidates, key=lambda k: k['prob'])[-1 * options['top_k']:]
+                # top_k = 1
+
+                # e.g. candidates: list of dic{'S_H':array[dim=500], 'word':'START 红 尘 怜 子 笑 / 便 欲 出 江 城 / 绿 玉 共 青',
+                # 'prob': 9.249938479933126e+23, 'C_H':array[dim=500]}
+
+                # print('candidates:')
+                # print(type(candidates))
+                # for can in candidates:
+                    # print(can['word'])
 
             sen_candidates = sorted(sen_candidates, key=lambda k: k['prob'])[-1 * options['top_k']:]
+            # top_k = 1
+
+            # print('sen_candidates:')
+            # print(type(sen_candidates)) # list
+            # print(len(sen_candidates)) # 1 or 0(for the case: Cannot generate poem meeting all requirements)
+            # for can in sen_candidates:
+            #     print(can['word'])
+
+            '''  
+            sen_candidates:
+            START 红 尘 怜 子 笑
+            sen_candidates:
+            START 红 尘 怜 子 笑 / 便 欲 出 江 城
+            sen_candidates:
+            START 红 尘 怜 子 笑 / 便 欲 出 江 城 / 绿 玉 共 青 山
+            sen_candidates:
+            START 红 尘 怜 子 笑 / 便 欲 出 江 城 / 绿 玉 共 青 山 / 双 眼 碧 云 横
+            sen_candidates:
+            START 红 尘 怜 子 笑 / 便 欲 出 江 城 / 绿 玉 共 青 山 / 双 眼 碧 云 横 / 色 胜 春 光 满
+            '''
+
             try:
                 sen_candidates[0]['word'] = sen_candidates[0]['word'] + ' /'
             except:
@@ -1203,8 +1309,8 @@ def checkMemory():
 
 def predict():
     print('Predict begin')
-    # all_type = ['ymr', 'dlh', 'jzmlh', 'djc', 'zgt', 'psm', 'yja', 'poem5', 'poem7']
-    all_type = ['poem5', 'poem7']
+    all_type = ['ymr', 'dlh', 'jzmlh', 'djc', 'zgt', 'psm', 'yja', 'poem5', 'poem7', 'test']
+    # all_type = ['poem5', 'poem7']
 
     checkMemory()
     # check if memory is prepared and create memory if not exist
@@ -1224,44 +1330,45 @@ def predict():
 
         list_file = [sys.argv[1]]
         for f in list_file:
-            print("Predict: reading model parameters from %s" % f)  #
+            print("Predict: reading model parameters from %s" % f)
             sess.run(tf.initialize_all_variables())
             model.saver.restore(sess, path + '/' + f)
 
-            if poem_type == 'poem5':
-                options['poem_type'] = 'poem5'
+            tmp_str = ''
+            for i in options['predict_seq_len']:
+                tmp_str += str(i)
+                tmp_str += '-'
+            tmp_str = tmp_str[:-1]
+            options['force_type'] = tmp_str
+            options['type_len_format'].append(tmp_str)
+
+            if (options['poem_type'] == 'poem5'):
                 options['yun_list'] = [[2, 4]]  # default=[1,2,4]
                 if options['use_all_lv']:  # default=1 强平仄，每个字都有要求 （两种）
-                    # options['lv_list'] = [['p', 'p', 'z', 'z', 'p'], ['z', 'z', 'z', 'p', 'p'], ['z', 'z', 'p', 'p', 'z'], ['p', 'p', 'z', 'z', 'p']] 
+                    # options['lv_list'] = [['p', 'p', 'z', 'z', 'p'], ['z', 'z', 'z', 'p', 'p'],
+                    # ['z', 'z', 'p', 'p', 'z'], ['p', 'p', 'z', 'z', 'p']]
                     options['lv_list'] = [['z', 'z', 'p', 'p', 'z'], ['p', 'p', 'z', 'z', 'p'],
                                           ['p', 'p', 'p', 'z', 'z'], ['z', 'z', 'z', 'p', 'p']]
 
-                options['predict_seq_len'] = [5, 5, 5, 5]
-                options['force_type'] = '5-5-5-5'
-                options['predict_file'] = 'results/' + sys.argv[1] + '_' + sys.argv[2] + '_' \
-                                          + str(options['memory_weight']) + '_poem5.txt'
-
-                data_set = prepare_data_for_prediction(options, open(options['test_in_file']).readlines(),
-                                                       open(options['test_head_file']).readlines())
-                predict_process(options, data_set, sess, model, is_feed=True)
-
-            if poem_type == 'poem7':
-                options['poem_type'] = 'poem7'
+            elif (options['poem_type'] == 'poem7'):
                 options['yun_list'] = [[2, 4]]
                 if options['use_all_lv']:  # 平仄强规则 （两种）
-                    # options['lv_list'] = [['z', 'z', 'p', 'p', 'z', 'z', 'p'], ['z', 'p', 'p', 'z', 'z', 'p', 'p'], ['p', 'p', 'z', 'z', 'p', 'p', 'z'], ['z', 'z', 'p', 'p', 'z', 'z', 'p']] 
+                    # options['lv_list'] = [['z', 'z', 'p', 'p', 'z', 'z', 'p'], ['z', 'p', 'p', 'z', 'z', 'p', 'p'],
+                    # ['p', 'p', 'z', 'z', 'p', 'p', 'z'], ['z', 'z', 'p', 'p', 'z', 'z', 'p']]
                     options['lv_list'] = [['p', 'p', 'z', 'z', 'p', 'p', 'z'], ['z', 'z', 'p', 'p', 'z', 'z', 'p'],
                                           ['z', 'z', 'p', 'p', 'p', 'z', 'z'], ['p', 'p', 'z', 'z', 'z', 'p', 'p']]
 
-                options['predict_seq_len'] = [7, 7, 7, 7]
-                options['force_type'] = '7-7-7-7'
-                options['predict_file'] = 'results/' + sys.argv[1] + '_' + sys.argv[2] + '_' \
-                                          + str(options['memory_weight']) + '_poem7.txt'
+            else:
+                options['hard_yun'] = 0  # 非绝句、律诗，取消押韵限制
 
-                for memory_weight_index in range(0, int(sys.argv[4])):
-                    data_set = prepare_data_for_prediction(options, open(options['test_in_file']).readlines(),
-                                                           open(options['test_head_file']).readlines())  #
-                    predict_process(options, data_set, sess, model, is_feed=True)
+                # for memory_weight_index in range(0, int(sys.argv[4])):
+                #     data_set = prepare_data_for_prediction(options, open(options['test_in_file']).readlines(),
+                #                                            open(options['test_head_file']).readlines())  #
+                #     predict_process(options, data_set, sess, model, is_feed=True)
+
+            data_set = prepare_data_for_prediction(options, open(options['test_in_file']).readlines(),
+                                                   open(options['test_head_file']).readlines())
+            predict_process(options, data_set, sess, model, is_feed=True)
 
 
 def main(_):
