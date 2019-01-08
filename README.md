@@ -77,10 +77,17 @@ Run a selected model:
 python predict/predict.py model_name style memory_weight round_num poem_type
 ```
 `model_name` : the model which is selected in the dir 'train/tmp/' is put in 'predict/model/'.
+
 `style` : biansai/tianyuan/yanqing/general. Illegal input will be considered as 'general'.
+
 `memory_weight` : suggest 0-30.
+
 `round_num` : suggest 1.
-`poem_type` : poem5/poem7. Illegal input will be considered as 'poem7'.
+
+`poem_type` : poem5/poem7/ymr/dlh/jzmlh/djc/zgt/psm/yja. Illegal input will be considered as 'poem7'.
+
+[五言/七言/虞美人/蝶恋花/减字木兰花/点绛唇/鹧鸪天/菩萨蛮/渔家傲]
+
 
 Change test keyword input: modify the file 'resource/predict_resource/test_poem_58k.txt'.
 Run examples: the file 'predict/execute.sh' includes all command. you can modify the command quickly and run it.
