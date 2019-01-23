@@ -9,7 +9,13 @@ virtualenv -p /usr/bin/python2.7 --no-site-packages ../tf0.10
 
 source ../tf0.10/bin/activate
 
-pip install tensorflow-0.10.0-cp27-none-linux_x86_64.whl
+pip install numpy==1.15.4
+
+#pip install tensorflow-0.10.0-cp27-none-linux_x86_64.whl
+
+pip install \
+          -i https://pypi.tuna.tsinghua.edu.cn/simple/ \
+            https://mirrors.tuna.tsinghua.edu.cn/tensorflow/linux/gpu/tensorflow-0.10.0-cp27-none-linux_x86_64.whl
 
 source /work4/zhangsy/env_enable_7.5
 
